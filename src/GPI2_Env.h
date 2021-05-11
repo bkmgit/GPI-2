@@ -1,5 +1,5 @@
 /*
-Copyright (c) Fraunhofer ITWM - Carsten Lojewski <lojewski@itwm.fhg.de>, 2013-2016
+Copyright (c) Fraunhofer ITWM - Carsten Lojewski <lojewski@itwm.fhg.de>, 2013-2021
 
 This file is part of GPI-2.
 
@@ -22,7 +22,6 @@ along with GPI-2. If not, see <http://www.gnu.org/licenses/>.
 #include "GPI2_Types.h"
 #include "GPI2_Utility.h"
 
-int
-gaspi_handle_env(gaspi_context_t* ctx);
+int gaspi_handle_env (gaspi_context_t * ctx);
 
 #endif //_GPI2_ENV_H_

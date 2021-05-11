@@ -1,5 +1,5 @@
 /*
-Copyright (c) Fraunhofer ITWM - Carsten Lojewski <lojewski@itwm.fhg.de>, 2013-2016
+Copyright (c) Fraunhofer ITWM - Carsten Lojewski <lojewski@itwm.fhg.de>, 2013-2021
 
 This file is part of GPI-2.
 
@@ -28,18 +28,12 @@ typedef struct
   unsigned long size;
   unsigned long notif_addr;
 
-#ifdef GPI2_CUDA
-  int host_rkey;
-  unsigned long host_addr;
-#endif
-
 #ifdef GPI2_DEVICE_IB
   int rkey[2];
 #endif
 } gaspi_segment_descriptor_t;
 
 
-int
-gaspi_segment_set(const gaspi_segment_descriptor_t snp);
+int gaspi_segment_set (const gaspi_segment_descriptor_t snp);
 
 #endif //_GPI2_SEG_H_

@@ -1,5 +1,5 @@
 /*
-Copyright (c) Fraunhofer ITWM - Carsten Lojewski <lojewski@itwm.fhg.de>, 2013-2016
+Copyright (c) Fraunhofer ITWM - Carsten Lojewski <lojewski@itwm.fhg.de>, 2013-2021
 
 This file is part of GPI-2.
 
@@ -31,30 +31,46 @@ along with GPI-2. If not, see <http://www.gnu.org/licenses/>.
    space. For the latter we use 64 though, to have a larger alignment
    of the data space (hacky!).
 */
-#define NOTIFY_OFFSET ((65536 * sizeof(gaspi_notification_t)) + (64))
+#define NOTIFICATIONS_SPACE_SIZE ((65536 * sizeof(gaspi_notification_t)) + (64))
 
-gaspi_context_t glb_gaspi_ctx;
+extern gaspi_context_t glb_gaspi_ctx;
 
 static inline gaspi_cycles_t
 gaspi_get_cycles (void)
 {
+#if defined(__x86_64__)
+
   unsigned low, high;
   unsigned long long val;
 
-  asm volatile ("rdtsc":"=a" (low), "=d" (high));
+  __asm__ volatile ("rdtsc":"=a" (low), "=d" (high));
+
   val = high;
   val = (val << 32) | low;
   return val;
+
+#elif defined(__aarch64__)
+
+  unsigned long ts;
+  asm volatile ("isb; mrs %0, cntvct_el0" : "=r" (ts));
+  return ts;
+
+#elif defined (__PPC64__)
+
+  unsigned long cycles;
+  asm volatile ("mftb %0" : "=r" (cycles) : );
+  return cycles;
+
+#endif
 }
 
 #ifdef MIC
-static inline
-unsigned char gaspi_atomic_xchg (volatile unsigned char *addr,
-				 const char new_val)
+static inline unsigned char
+gaspi_atomic_xchg (volatile unsigned char *addr, const char new_val)
 {
   unsigned char res;
-  asm volatile ("lock; xchgb %0, %1":"+m" (*addr),
-		"=a" (res):"1" (new_val):"memory");
+  __asm__ volatile ("lock; xchgb %0, %1":"+m" (*addr),
+                "=a" (res):"1" (new_val):"memory");
   return res;
 }
 
@@ -71,47 +87,57 @@ unsigned char gaspi_atomic_xchg (volatile unsigned char *addr,
 static inline void
 lock_gaspi (gaspi_lock_t * l)
 {
-  while (GASPI_ATOMIC_TRY_LOCK(&l->lock))
+  while (GASPI_ATOMIC_TRY_LOCK (&l->lock))
+  {
     while (l->lock)
-      gaspi_delay ();
+    {
+      GASPI_DELAY();
+    }
+  }
 }
 
 static inline int
 lock_gaspi_tout (gaspi_lock_t * l, const gaspi_timeout_t timeout_ms)
 {
 
-  if( timeout_ms == GASPI_BLOCK )
-    {
-      while (GASPI_ATOMIC_TRY_LOCK(&l->lock))
-	while (l->lock)
-	  gaspi_delay ();
-      return 0;
-    }
-  else if (timeout_ms == GASPI_TEST)
-    {
-      const unsigned char val = GASPI_ATOMIC_TRY_LOCK (&l->lock);
-      return val;
-    }
-
-  //timeout
-  const gaspi_cycles_t s0 = gaspi_get_cycles ();
-
-  while (GASPI_ATOMIC_TRY_LOCK (&l->lock))
+  if (timeout_ms == GASPI_BLOCK)
+  {
+    while (GASPI_ATOMIC_TRY_LOCK (&l->lock))
     {
       while (l->lock)
-	{
-	  const gaspi_cycles_t s1 = gaspi_get_cycles ();
-	  const gaspi_cycles_t tdelta = s1 - s0;
-
-	  const float ms = (float) tdelta * glb_gaspi_ctx.cycles_to_msecs;
-	  if (ms > (float) timeout_ms)
-	    {
-	      return 1;
-	    }
-
-	  gaspi_delay ();
-	}
+      {
+        GASPI_DELAY();
+      }
     }
+    return 0;
+  }
+  else if (timeout_ms == GASPI_TEST)
+  {
+    const unsigned char val = GASPI_ATOMIC_TRY_LOCK (&l->lock);
+
+    return val;
+  }
+
+  //timeout
+  const gaspi_cycles_t s0 = gaspi_get_cycles();
+
+  while (GASPI_ATOMIC_TRY_LOCK (&l->lock))
+  {
+    while (l->lock)
+    {
+      const gaspi_cycles_t s1 = gaspi_get_cycles();
+      const gaspi_cycles_t tdelta = s1 - s0;
+
+      const float ms = (float) tdelta * glb_gaspi_ctx.cycles_to_msecs;
+
+      if (ms > (float) timeout_ms)
+      {
+        return 1;
+      }
+
+      GASPI_DELAY();
+    }
+  }
 
   return 0;
 }

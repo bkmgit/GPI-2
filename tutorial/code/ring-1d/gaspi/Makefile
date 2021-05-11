@@ -6,29 +6,31 @@ ifndef CMD_RUN
   CMD_RUN = $(GPI2_HOME)/bin/gaspi_run -m $$PBS_NODEFILE -N
 endif
 
-CC= gcc
-
 NAME += left_right_double_buffer_funneled
 NAME += left_right_double_buffer_multiple
-NAME += left_right_dataflow_halo
+# NAME += left_right_dataflow_halo
 
 CFLAGS += -Wall
 CFLAGS += -Wextra
 CFLAGS += -Wshadow
 CFLAGS += -O3
+CFLAGS += -std=gnu99
+ifeq "$(NON_MPI_CC)" "gcc"
 CFLAGS += -fopenmp
-CFLAGS += -std=c99
-
+endif
+ifeq "$(NON_MPI_CC)" "icc"
+CFLAGS += -qopenmp
+endif
 ###############################################################################
 
-INCLUDE_DIR += $(GPI2_HOME)/include
+INCLUDE_DIR += $(srcdir)/src/include
 INCLUDE_DIR += ..
-LIBRARY_DIR += $(GPI2_HOME)/lib64
+LIBRARY_DIR += $(GPI2_HOME)/src/.libs
 
 LDFLAGS += $(addprefix -L,$(LIBRARY_DIR))
 
-ifeq "$(CC)" "icc"
-  LDFLAGS += -openmp-link static
+ifeq "$(NON_MPI_CC)" "icc"
+  LDFLAGS += -qopenmp-link static
 endif
 
 CFLAGS += $(addprefix -I,$(INCLUDE_DIR))

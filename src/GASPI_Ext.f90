@@ -1,5 +1,5 @@
 !
-! Copyright (c) - Fraunhofer ITWM - 2013-2016
+! Copyright (c) - Fraunhofer ITWM - 2013-2021
 !
 ! This file is part of GPI-2.
 !
@@ -48,15 +48,6 @@ module GASPI_Ext
        integer(gaspi_rank_t) :: local_num
        integer(gaspi_return_t) :: res
      end function gaspi_proc_local_num
-  end interface
-
-  interface ! gaspi_machine_type
-     function gaspi_machine_type(machine_type) &
-	  &         result( res ) bind(C, name="gaspi_machine_type")
-       import
-       character(c_char), dimension(*) :: machine_type
-       integer(gaspi_return_t) :: res
-     end function gaspi_machine_type
   end interface
 
   interface ! gaspi_cpu_frequency

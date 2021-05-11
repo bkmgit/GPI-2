@@ -1,10 +1,11 @@
 #!/bin/sh
 
-GPI2_TSUITE_MFILE=machines
-GASPI_RUN="../bin/gaspi_run"
-GASPI_CLEAN="../bin/gaspi_cleanup"
+RUNTESTS_DIR=$(dirname `readlink -f "$0"`)
+GPI2_TSUITE_MFILE=${RUNTESTS_DIR}/machines
+GASPI_RUN="${RUNTESTS_DIR}/../bin/gaspi_run"
+GASPI_CLEAN="${RUNTESTS_DIR}/../bin/gaspi_cleanup"
 TESTS_GO_FAST=0
-TESTS=`ls bin`
+TESTS=`ls ${RUNTESTS_DIR}/bin`
 NUM_TESTS=0
 TESTS_FAIL=0
 TESTS_PASS=0
@@ -15,7 +16,7 @@ Time=1
 opts_used=0
 LOG_FILE=runtests_$(date -Idate).log
 
-MAX_TIME=600
+MAX_TIME=1200
 
 #Functions
 exit_timeout(){
@@ -31,44 +32,45 @@ exit_timeout(){
     printf '\033[31m'"KILLED\n"
 
     #reset terminal to normal
-    tput sgr0
+    tput -T xterm sgr0
 }
 
 run_test(){
+    TEST_NAME=$(basename $1)
     TEST_ARGS=""
     #check definitions file for particular test
-    F="${1%.*}"
-    if [ -r defs/${F}.def ]; then
-	printf "%45s: " "$1 [${F}.def]"
-	SKIP=`gawk '/SKIP/{print 1}' defs/${F}.def`
+    F="${TEST_NAME%.*}"
+    if [ -r ${RUNTESTS_DIR}/defs/${F}.def ]; then
+	printf "%51s: " "$TEST_NAME [${F}.def]"
+	SKIP=`gawk '/SKIP/{print 1}' ${RUNTESTS_DIR}/defs/${F}.def`
 	if [ -n "$SKIP" ]; then
 	    printf '\033[34m'"SKIPPED\n"
 	    TESTS_SKIPPED=$((TESTS_SKIPPED+1))
    #reset terminal to normal
-	    tput sgr0
+	    tput -T xterm sgr0
 	    return
 	fi
 
-	TEST_ARGS=`gawk 'BEGIN{FS="="} /ARGS/{print $2}' defs/${F}.def`
+	TEST_ARGS=`gawk 'BEGIN{FS="="} /ARGS/{print $2}' ${RUNTESTS_DIR}/defs/${F}.def`
     else
 
     #check definitions file (default)
-	if [ -r defs/default.def ]; then
-	    printf "%45s: " "$1 [default.def]"
-	    TEST_ARGS=`gawk 'BEGIN{FS="="} /NETWORK/{print $2}' defs/default.def`
-	    TEST_ARGS="$TEST_ARGS "" `gawk 'BEGIN{FS="="} /TOPOLOGY/{print $2}' defs/default.def`"
-	    TEST_ARGS="$TEST_ARGS "" `gawk 'BEGIN{FS="="} /SN_PERSISTENT/{print $2}' defs/default.def`"
+	if [ -r ${RUNTESTS_DIR}/defs/default.def ]; then
+	    printf "%51s: " "$TEST_NAME [default.def]"
+	    TEST_ARGS=`gawk 'BEGIN{FS="="} /NETWORK/{print $2}' ${RUNTESTS_DIR}/defs/default.def`
+	    TEST_ARGS="$TEST_ARGS "" `gawk 'BEGIN{FS="="} /TOPOLOGY/{print $2}' ${RUNTESTS_DIR}/defs/default.def`"
+	    TEST_ARGS="$TEST_ARGS "" `gawk 'BEGIN{FS="="} /SN_PERSISTENT/{print $2}' ${RUNTESTS_DIR}/defs/default.def`"
 	else
-	    printf "%45s: " "$1"
+	    printf "%51s: " "$TEST_NAME"
 	fi
     fi
 
     if [ $Results = 0 ] ; then
-	$GASPI_RUN -m ${GPI2_TSUITE_MFILE} $PWD/bin/$1 > results/$1-$(date -Idate).dat 2>&1 &
+	$GASPI_RUN -m ${GPI2_TSUITE_MFILE} $1 > results/$1-$(date -Idate).dat 2>&1 &
 	PID=$!
     else
 	echo "=================================== $1 ===================================" >> $LOG_FILE 2>&1 &
-	$GASPI_RUN -m ${GPI2_TSUITE_MFILE} $PWD/bin/$1 $TEST_ARGS >> $LOG_FILE 2>&1 &
+	$GASPI_RUN -m ${GPI2_TSUITE_MFILE} $1 $TEST_ARGS >> $LOG_FILE 2>&1 &
 	PID=$!
     fi
 
@@ -99,7 +101,7 @@ run_test(){
     fi
 
    #reset terminal to normal
-    tput sgr0
+    tput -T xterm sgr0
 
     if [ $Time = 1 ] ; then
 	if [ $TIMEDOUT = 0 ];then
@@ -119,7 +121,7 @@ while getopts "e:vtn:fm:o:" option ; do
 	t ) Time=0;;
 	n ) GASPI_RUN="${GASPI_RUN} -n ${OPTARG}";opts_used=$(($opts_used + 2));;
 	f ) TESTS_GO_FAST=1;opts_used=$(($opts_used + 1));;
-	m ) GPI2_TSUITE_MFILE=${OPTARG};opts_used=$(($opts_used + 2));;
+	m ) GPI2_TSUITE_MFILE=`readlink -f ${OPTARG}`;opts_used=$(($opts_used + 2));;
 	o ) LOG_FILE=${OPTARG};opts_used=$(($opts_used + 2));;
 	\?) shift $(($OPTIND-2));echo;echo "Unknown option ($1)";echo;exit 1;;
     esac
@@ -165,8 +167,8 @@ do
     if [ "$i" = "-v" ]; then
 	continue
     fi
-    if [ `find $PWD/bin/ -iname $i ` ]; then
-	run_test $i
+    if [ `find ${RUNTESTS_DIR}/bin/ -maxdepth 1 -iname $i ` ]; then
+	run_test ${RUNTESTS_DIR}/bin/$i
 	NUM_TESTS=$(($NUM_TESTS+1))
 	sleep 1
     else
@@ -176,6 +178,14 @@ done
 
 killall sleep 2>/dev/null
 
-printf "Run $NUM_TESTS tests:\n$TESTS_PASS passed\n$TESTS_FAIL failed\n$TESTS_TIMEOUT timed-out\n$TESTS_SKIPPED skipped\nTimeout $MAX_TIME (secs)\n"
+printf "Run $NUM_TESTS tests:\n \
+$TESTS_PASS passed\n \
+$TESTS_FAIL failed\n \
+$TESTS_TIMEOUT timed-out\n \
+$TESTS_SKIPPED skipped\nTimeout $MAX_TIME (secs)\n"
+
+if [ $TESTS_FAIL -gt 0 -o $TESTS_TIMEOUT -gt 0 ]; then
+    exit 1
+fi
 
 exit 0

@@ -1,5 +1,5 @@
 /*
-Copyright (c) Fraunhofer ITWM - Carsten Lojewski <lojewski@itwm.fhg.de>, 2013-2016
+Copyright (c) Fraunhofer ITWM - Carsten Lojewski <lojewski@itwm.fhg.de>, 2013-2021
 
 This file is part of GPI-2.
 
@@ -23,7 +23,6 @@ along with GPI-2. If not, see <http://www.gnu.org/licenses/>.
 #include <infiniband/verbs_exp.h>
 #endif
 #include <infiniband/verbs.h>
-#include <infiniband/driver.h>
 
 #include "GPI2_Dev.h"
 
